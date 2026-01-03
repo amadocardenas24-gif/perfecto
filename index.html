@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
+        #start-screen {
+            position: fixed; inset: 0; background: #000; color: #fff; z-index: 10000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center;
+        }
+        #target-img { width: 200px; border-radius: 15px; border: 3px solid #00f2fe; margin-bottom: 20px; }
+        #progress-bar { width: 200px; height: 10px; background: #333; border-radius: 5px; margin: 20px 0; display: none; overflow: hidden; }
+        #progress-fill { width: 0%; height: 100%; background: #00f2fe; transition: 0.3s; }
+        #start-btn { padding: 15px 30px; background: #00f2fe; border: none; border-radius: 50px; font-weight: bold; cursor: pointer; }
+        #sound-btn {
+            position: fixed; bottom: 10%; left: 50%; transform: translateX(-50%);
+            padding: 15px 30px; background: #adff2f; border-radius: 50px; display: none; z-index: 1000; border: none; font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="start-screen">
+        <img id="target-img" src="11.jpg">
+        <h3>Escanea esta imagen</h3>
+        <button id="start-btn">INICIAR EXPERIENCIA</button>
+        <div id="progress-bar"><div id="progress-fill"></div></div>
+        <p id="msg" style="margin-top:10px; font-size:12px;"></p>
+    </div>
+
+    <button id="sound-btn">?? ACTIVAR SONIDO</button>
+
+    <a-scene mindar-image="imageTargetSrc: ./marker.mind; autoStart: false; uiScanning: no;" 
+             embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" 
+             vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        
+        <a-assets>
+            <video id="vid" src="./asset.mp4" preload="auto" loop crossorigin="anonymous" playsinline muted></video>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+        <a-entity id="target" mindar-image-target="targetIndex: 0">
+            <a-video src="#vid" width="1" height="0.6" position="0 0 0"></a-video>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        const startBtn = document.getElementById('start-btn');
+        const soundBtn = document.getElementById('sound-btn');
+        const fill = document.getElementById('progress-fill');
+        const msg = document.getElementById('msg');
+        const video = document.getElementById('vid');
+
+        startBtn.addEventListener('click', async () => {
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                alert("ERROR: AR requiere HTTPS para acceder a la cámara.");
+            }
+
+            startBtn.style.display = 'none';
+            document.getElementById('progress-bar').style.display = 'block';
+            msg.innerText = "Cargando cámara y motor...";
+
+            try {
+                const sceneEl = document.querySelector('a-scene');
+                const system = sceneEl.systems['mindar-image-system'];
+                
+                // Simulación de carga
+                let p = 0;
+                const int = setInterval(() => { 
+                    p += 10; fill.style.width = p + '%'; 
+                    if(p >= 90) clearInterval(int);
+                }, 200);
+
+                await system.start(); // Intentar arrancar MindAR
+                
+                // Si llegamos aquí, el motor arrancó
+                fill.style.width = '100%';
+                msg.innerText = "¡Listo! Apunta a la imagen";
+                setTimeout(() => {
+                    document.getElementById('start-screen').style.display = 'none';
+                }, 1000);
+
+            } catch (err) {
+                msg.innerText = "Error al iniciar cámara: " + err;
+                console.error(err);
+            }
+        });
+
+        const target = document.getElementById('target');
+        let t;
+        target.addEventListener("targetFound", () => {
+            t = setTimeout(() => { soundBtn.style.display = "block"; }, 2000);
+        });
+        target.addEventListener("targetLost", () => {
+            clearTimeout(t);
+            soundBtn.style.display = "none";
+            video.pause();
+        });
+        soundBtn.addEventListener('click', () => {
+            video.muted = false; video.play(); soundBtn.style.display = "none";
+        });
+    </script>
+</body>
+</html>
